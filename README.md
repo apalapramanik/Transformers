@@ -2,19 +2,35 @@
 
 Character-level GPT-style Transformer language model trained on WikiText-2.
 
+Part of a four-model study comparing recurrent and attention-based architectures on character-level language modeling. Each model is implemented from scratch in PyTorch and trained under identical conditions on the same dataset.
+
+| Model | Val Accuracy | Val Loss | Parameters |
+|-------|-------------|----------|------------|
+| [RNN](https://github.com/apalapramanik/RNN) | 60.80% | 1.31 | 525K |
+| [LSTM](https://github.com/apalapramanik/LSTM) | 61.78% | 1.28 | 1.3M |
+| [GRU](https://github.com/apalapramanik/GRU) | 62.05% | 1.26 | 1.1M |
+| **Transformer** (this repo) | **65.59%** | **1.19** | **5.0M** |
+
 ---
 
 ## Results
 
-**200 epochs · char-level · WikiText-2**
+**200 epochs · char-level · WikiText-2 · NVIDIA H200**
 
 | Metric | Value |
 |--------|-------|
 | Validation accuracy | **65.59%** |
 | Validation loss | 1.19 |
+| Parameters | 4,998,400 |
 
 ![Training curves](loss_curve_trans.png)
 ![Accuracy curves](accuracy_curve_trans.png)
+
+**Sample output** (greedy decoding, prompt: `"The history of"`):
+```
+The history of the community of the Communist Party , which was also a
+professional community in the United States .
+```
 
 ---
 
@@ -53,6 +69,8 @@ Each block applies:
 | Epochs | 200 |
 
 **Weight tying:** the output projection shares weights with the token embedding, reducing parameters by ~260K and aligning the output space with the input embedding space.
+
+**Training infrastructure:** Trained on an NVIDIA H200 GPU via SLURM on a university HPC cluster (~2 hours for 200 epochs).
 
 ---
 
