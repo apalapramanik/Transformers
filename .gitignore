@@ -1,0 +1,19 @@
+# SLURM job output
+*.err
+*.out
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Intermediate checkpoints (only epoch_200_end.pt is tracked)
+checkpoints/*_mid.pt
+checkpoints/*_time.pt
+checkpoints/*_best.pt
+
+# Word-level and experimental checkpoint directories
+checkpoints_*/

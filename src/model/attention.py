@@ -22,7 +22,7 @@ def causal_mask(seq_len, device):
     return mask.bool()
 
 
-def scaled_dot_product_attention(Q, K, V, mask=None):
+def scaled_dot_product_attention(Q, K, V, mask=None, attn_dropout=None):
     """
     PURPOSE:
     Compute attention = decide importance + blend information.
@@ -54,6 +54,8 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
     # STEP 4: Convert scores to attention weights
     # Meaning: "Turn importance into probabilities"
     attn_weights = torch.softmax(scores, dim=-1)
+    if attn_dropout is not None:
+        attn_weights = attn_dropout(attn_weights)
 
     # STEP 5: Blend information from important positions
     # Meaning: "Collect values using attention weights"

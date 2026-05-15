@@ -1,162 +1,101 @@
+# Transformer Language Model
 
-# Transformer From Scratch
-
-This repository implements a **GPT-style Transformer language model from scratch**, with an emphasis on **conceptual clarity, correctness, and transparency**.
-
-The goal of this project is to understand how Transformers work by explicitly implementing each core component, rather than relying on high-level library abstractions.
+Character-level GPT-style Transformer language model trained on WikiText-2.
 
 ---
 
-## Overview
+## Results
 
-The model is trained as a **character-level autoregressive language model** on the **WikiText-2 (raw)** dataset.
-Given a sequence of characters, the model learns to predict the next character using **causal self-attention**.
+**200 epochs · char-level · WikiText-2**
 
-The implementation focuses on:
+| Metric | Value |
+|--------|-------|
+| Validation accuracy | **65.59%** |
+| Validation loss | 1.19 |
 
-* Explicit attention mechanics
-* Clear data flow
-* Stable and debuggable training
+![Training curves](loss_curve_trans.png)
+![Accuracy curves](accuracy_curve_trans.png)
 
 ---
 
-## Model Architecture
-
-The model follows a GPT-style Transformer architecture:
+## Architecture
 
 ```
-tokens
- → token embedding
- → sinusoidal positional encoding
- → N × Transformer blocks
- → layer normalization
- → linear output head
- → next-character prediction
+tokens → token embedding (256-dim)
+       → sinusoidal positional encoding
+       → dropout (0.1)
+       → 6 × Transformer blocks
+       → layer normalization
+       → output head (tied to embedding weights)
+       → next-character prediction
 ```
 
 ### Transformer Block
 
-Each Transformer block consists of:
+Each block applies:
+1. Multi-head causal self-attention (8 heads, attention dropout)
+2. Residual + LayerNorm
+3. Feed-forward network: Linear → GELU → Dropout → Linear
+4. Residual + LayerNorm
 
-1. Multi-head self-attention with causal masking
-2. Residual connection followed by layer normalization
-3. Feed-forward network
-4. Residual connection followed by layer normalization
+| Hyperparameter | Value |
+|---|---|
+| Embedding dim | 256 |
+| Attention heads | 8 |
+| Head dim | 32 |
+| Transformer layers | 6 |
+| Feed-forward dim | 1024 (4× embed) |
+| Dropout | 0.1 |
+| Sequence length | 128 chars |
+| Batch size | 128 |
+| Optimizer | Adam (lr=3e-4, weight decay=1e-5) |
+| Scheduler | ReduceLROnPlateau (factor=0.5, patience=2, min_lr=1e-5) |
+| Epochs | 200 |
 
----
-
-## Features
-
-### Core Components
-
-* Scaled dot-product attention
-* Multi-head self-attention
-* Causal masking (autoregressive)
-* Sinusoidal positional encoding
-* Residual connections
-* Layer normalization
-* Feed-forward network
-
-### Training Pipeline
-
-* Character-level dataset loader
-* Sliding-window sequence generation
-* Teacher forcing
-* Cross-entropy loss
-* Adam optimizer
-* Gradient clipping
-* Learning-rate scheduling
-* Validation loop
-* Checkpoint saving
-* Text generation
-* Training and validation loss plotting
-
-### Platform Support
-
-* Apple Silicon (MPS)
-* CPU fallback
-* Automatic device selection
+**Weight tying:** the output projection shares weights with the token embedding, reducing parameters by ~260K and aligning the output space with the input embedding space.
 
 ---
 
 ## Repository Structure
 
 ```
-transformer-from-scratch/
-├── train.py
-├── requirements.txt
+Transformers/
+├── train.py                  # Training script
+├── requirements.txt          # Dependencies
 ├── checkpoints/
-├── loss_curve.png
+│   └── epoch_200_end.pt      # Trained model weights
+├── loss_curve_trans.png      # Training/validation loss
+├── accuracy_curve_trans.png  # Training/validation accuracy
 ├── data/
 │   └── wikitext-2-raw/
 │       ├── wiki.train.raw
 │       ├── wiki.valid.raw
 │       └── wiki.test.raw
-├── src/
-│   ├── dataset.py
-│   └── model/
-│       ├── attention.py
-│       ├── multi_head_attention.py
-│       ├── transformer_block.py
-│       ├── positional_encoding.py
-│       └── transformer_model.py
-└── README.md
+└── src/
+    ├── dataset.py            # CharDataset
+    └── model/
+        ├── attention.py          # scaled_dot_product_attention, causal_mask
+        ├── multi_head_attention.py
+        ├── transformer_block.py
+        ├── positional_encoding.py
+        └── transformer_model.py
 ```
 
 ---
 
 ## Dataset
 
-The model is trained on **WikiText-2 (raw version)** using **character-level language modeling**.
+**WikiText-2 (raw)** — character-level language modeling.
 
-* No tokenization is used
-* Each training example is a fixed-length character sequence
-* Targets are the same sequence shifted by one character
+| Split | Size |
+|---|---|
+| Training | ~12M characters |
+| Validation | ~1M characters |
+| Vocabulary | ~1,013 unique characters |
 
-Approximate dataset sizes:
+Each sample is a 128-character window; consecutive windows are non-overlapping (stride = seq_len).
 
-* Training: ~12M characters
-* Validation: ~1M characters
-* Test: ~1M characters
-
----
-
-## Requirements
-
-### System Requirements
-
-* macOS, Linux, or Windows
-* Apple Silicon supported via MPS
-* CPU-only execution supported
-
-### Software Requirements
-
-* **Python ≥ 3.10**
-
-All Python dependencies are listed in `requirements.txt`.
-
----
-
-## Installation
-
-### Create a virtual environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Dataset Download
-
-The dataset is downloaded using the Hugging Face `datasets` API and saved locally as plain text.
+Download with the Hugging Face `datasets` library:
 
 ```python
 from datasets import load_dataset
@@ -165,46 +104,74 @@ import os
 dataset = load_dataset("wikitext", "wikitext-2-raw-v1")
 os.makedirs("data/wikitext-2-raw", exist_ok=True)
 
-with open("data/wikitext-2-raw/wiki.train.raw", "w") as f:
-    f.write("\n".join(dataset["train"]["text"]))
+for split, fname in [("train", "wiki.train.raw"), ("validation", "wiki.valid.raw"), ("test", "wiki.test.raw")]:
+    with open(f"data/wikitext-2-raw/{fname}", "w") as f:
+        f.write("\n".join(dataset[split]["text"]))
+```
 
-with open("data/wikitext-2-raw/wiki.valid.raw", "w") as f:
-    f.write("\n".join(dataset["validation"]["text"]))
+---
 
-with open("data/wikitext-2-raw/wiki.test.raw", "w") as f:
-    f.write("\n".join(dataset["test"]["text"]))
+## Installation
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ---
 
 ## Training
 
-Run training from the repository root:
-
 ```bash
 python train.py
 ```
 
-During training, the script:
+The script resumes automatically from the latest checkpoint in `checkpoints/` if one exists.
 
-* Prints batch-level progress
-* Reports training and validation loss per epoch
-* Saves model checkpoints
-* Generates sample text after each epoch
-* Saves a training/validation loss plot (`loss_curve.png`)
+During training it prints per-batch loss, saves checkpoints at mid-epoch and end-of-epoch, generates a short text sample each epoch, and saves loss/accuracy plots on completion.
 
 ---
 
-## Text Generation
+## Loading the Trained Model
 
-Text generation is performed using:
+```python
+import torch
+from src.dataset import CharDataset
+from src.model.transformer_model import TransformerLanguageModel
+from src.model.attention import causal_mask
 
-* Autoregressive decoding
-* Temperature-scaled sampling
-* Multinomial token selection
+with open("data/wikitext-2-raw/wiki.train.raw") as f:
+    train_text = f.read()
 
-Generated samples provide a qualitative check on model learning and stability.
+dataset = CharDataset(train_text, seq_len=128, stride=128)
 
+model = TransformerLanguageModel(
+    vocab_size=dataset.vocab_size,
+    embed_dim=256,
+    num_heads=8,
+    num_layers=6,
+    ff_hidden_dim=1024,
+    dropout=0.0,
+)
+ckpt = torch.load("checkpoints/epoch_200_end.pt", map_location="cpu", weights_only=False)
+model.load_state_dict(ckpt["model_state"])
+model.eval()
 
+# Inference
+text = "The market"
+indices = [dataset.stoi[c] for c in text]
+x = torch.tensor(indices).unsqueeze(0)
+mask = causal_mask(x.size(1), device="cpu")
+with torch.no_grad():
+    logits = model(x, mask)
+next_char = dataset.itos[logits[0, -1].argmax().item()]
+```
 
+---
 
+## Requirements
+
+- Python ≥ 3.10
+- CUDA-capable GPU recommended
+- See `requirements.txt` for full dependency list

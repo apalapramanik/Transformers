@@ -19,12 +19,13 @@ class TransformerBlock(nn.Module):
         super().__init__()
 
         # Multi-head self-attention
-        self.attention = MultiHeadAttention(embed_dim, num_heads)
+        self.attention = MultiHeadAttention(embed_dim, num_heads, dropout=dropout)
 
         # Feedforward network (token-wise)
         self.feedforward = nn.Sequential(
             nn.Linear(embed_dim, ff_hidden_dim),
-            nn.ReLU(),
+            nn.GELU(),
+            nn.Dropout(dropout),
             nn.Linear(ff_hidden_dim, embed_dim),
         )
 

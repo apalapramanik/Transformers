@@ -14,7 +14,7 @@ class MultiHeadAttention(nn.Module):
     - Outputs are combined back together
     """
 
-    def __init__(self, embed_dim, num_heads):
+    def __init__(self, embed_dim, num_heads, dropout=0.0):
         super().__init__()
 
         assert embed_dim % num_heads == 0, \
@@ -32,6 +32,8 @@ class MultiHeadAttention(nn.Module):
 
         # Final projection to mix head outputs
         self.out_proj = nn.Linear(embed_dim, embed_dim)
+
+        self.attn_dropout = nn.Dropout(dropout)
 
     def forward(self, x, mask=None):
         """
@@ -57,7 +59,7 @@ class MultiHeadAttention(nn.Module):
 
         # STEP 3: Apply scaled dot-product attention
         # Meaning: decide importance + blend information
-        attn_output, _ = scaled_dot_product_attention(Q, K, V, mask)
+        attn_output, _ = scaled_dot_product_attention(Q, K, V, mask, self.attn_dropout)
 
         # STEP 4: Merge heads back together
         attn_output = attn_output.transpose(1, 2).contiguous()

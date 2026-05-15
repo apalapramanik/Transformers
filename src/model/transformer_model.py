@@ -48,11 +48,16 @@ class TransformerLanguageModel(nn.Module):
             ]
         )
 
+        # Dropout after embedding + positional encoding
+        self.emb_dropout = nn.Dropout(dropout)
+
         # Final normalization (stability before output)
         self.norm = nn.LayerNorm(embed_dim)
 
         # Output head: map vectors → vocabulary logits
-        self.output_head = nn.Linear(embed_dim, vocab_size)
+        # bias=False because weights are tied to token_embedding
+        self.output_head = nn.Linear(embed_dim, vocab_size, bias=False)
+        self.output_head.weight = self.token_embedding.weight
 
     def forward(self, x, mask=None):
         """
@@ -66,8 +71,8 @@ class TransformerLanguageModel(nn.Module):
         # STEP 1: Convert tokens to embeddings
         x = self.token_embedding(x)
 
-        # STEP 2: Add positional information
-        x = self.positional_encoding(x)
+        # STEP 2: Add positional information and apply dropout
+        x = self.emb_dropout(self.positional_encoding(x))
 
         # STEP 3: Apply stacked Transformer blocks
         for block in self.blocks:
